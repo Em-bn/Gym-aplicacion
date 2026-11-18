@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#090d16">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Pixel Gym Tracker · 60 Min & Hombro F3</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono for timers -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        pixel: {
+                            bg: '#090d16',
+                            card: '#111827',
+                            surface: '#1e293b',
+                            lime: '#a3e635',
+                            limeDark: '#65a30d',
+                            electric: '#38bdf8',
+                            electricDark: '#0284c7'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #090d16;
+            color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: contain;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(163, 230, 53, 0.9); box-shadow: 0 0 20px rgba(163, 230, 53, 0.25); }
+            50% { border-color: rgba(56, 189, 248, 0.9); box-shadow: 0 0 25px rgba(56, 189, 248, 0.35); }
+        }
+        .timer-finished-glow {
+            animation: pulse-border 1s infinite;
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-44 select-none font-sans antialiased selection:bg-lime-400 selection:text-slate-950">
+
+    <!-- STICKY HEADER: CRONÓMETRO DE SESIÓN (OBJETIVO 60 MIN) -->
+    <header class="sticky top-0 z-30 bg-[#090d16]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 pt-3 pb-2.5 shadow-lg">
+        <div class="max-w-lg mx-auto">
+            <!-- Top Row: Brand + Session Stopwatch -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-lime-400 to-sky-400 flex items-center justify-center text-slate-950 font-extrabold shadow-md shadow-lime-400/20">
+                        <i data-lucide="dumbbell" class="w-5 h-5 stroke-[2.5]"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <h1 class="text-sm font-extrabold tracking-tight text-white">PIXEL GYM</h1>
+                            <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-sky-500/15 text-sky-400 border border-sky-500/30">F3 Hombro</span>
+                        </div>
+                        <p id="sessionStatusText" class="text-[11px] text-slate-400 font-medium">Meta: Completar en 60:00 min</p>
+                    </div>
+                </div>
+
+                <!-- Session Stopwatch Controls -->
+                <div class="flex items-center gap-1.5 bg-slate-900/95 border border-slate-800 rounded-2xl px-2.5 py-1.5">
+                    <div class="text-right mr-1">
+                        <span class="block text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Sesión</span>
+                        <span id="sessionTimerDisplay" class="font-mono text-base font-extrabold text-lime-400 tracking-tight">00:00</span>
+                    </div>
+                    <button id="sessionPlayPauseBtn" onclick="toggleSessionTimer()" class="w-8 h-8 rounded-xl bg-lime-400 hover:bg-lime-300 active:scale-95 text-slate-950 flex items-center justify-center transition shadow-sm" title="Iniciar/Pausar Sesión">
+                        <i id="sessionPlayIcon" data-lucide="play" class="w-4 h-4 fill-current"></i>
+                    </button>
+                    <button onclick="openResetModal('session')" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 flex items-center justify-center transition" title="Reiniciar Cronómetro">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dual Progress Bars: Time (60m) & Workout Completion -->
+            <div class="mt-2.5 grid grid-cols-2 gap-3">
+                <!-- 60-Min Time Bar -->
+                <div>
+                    <div class="flex justify-between text-[10px] font-semibold mb-1">
+                        <span class="text-slate-400">Tiempo límite (60m)</span>
+                        <span id="sessionTimePercent" class="text-sky-400">0%</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div id="sessionTimeBar" class="h-full bg-gradient-to-r from-sky-400 to-lime-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+                <!-- Sets Completion Bar -->
+                <div>
+                    <div class="flex justify-between text-[10px] font-semibold mb-1">
+                        <span class="text-slate-400">Progreso de hoy</span>
+                        <span id="dayProgressText" class="text-lime-400">0/0 series</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div id="dayProgressBar" class="h-full bg-lime-400 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="max-w-lg mx-auto px-3.5 pt-3 space-y-3.5">
+
+        <!-- DAY SELECTOR TABS (LUNES / MIÉRCOLES / VIERNES) -->
+        <div class="grid grid-cols-3 gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800/90">
+            <button onclick="switchDay('lunes')" id="tab-lunes" class="day-tab py-2.5 px-2 rounded-xl text-center transition-all duration-200 flex flex-col items-center justify-center">
+                <span class="text-xs font-extrabold tracking-wide">LUNES</span>
+                <span class="text-[10px] opacity-80 font-medium truncate max-w-full">Pecho · Tríceps · F1</span>
+            </button>
+            <button onclick="switchDay('miercoles')" id="tab-miercoles" class="day-tab py-2.5 px-2 rounded-xl text-center transition-all duration-200 flex flex-col items-center justify-center">
+                <span class="text-xs font-extrabold tracking-wide">MIÉRCOLES</span>
+                <span class="text-[10px] opacity-80 font-medium truncate max-w-full">Espalda · Bíceps · F2</span>
+            </button>
+            <button onclick="switchDay('viernes')" id="tab-viernes" class="day-tab py-2.5 px-2 rounded-xl text-center transition-all duration-200 flex flex-col items-center justify-center">
+                <span class="text-xs font-extrabold tracking-wide">VIERNES</span>
+                <span class="text-[10px] opacity-80 font-medium truncate max-w-full">Pierna · Hombro F3</span>
+            </button>
+        </div>
+
+        <!-- CONTROL BAR: MODO AHORRO DE TIEMPO (2 SERIES AL FALLO) + UTILIDADES -->
+        <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-sky-950/40 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-sm">
+            <div class="flex items-start gap-2.5">
+                <div class="p-2 rounded-xl bg-lime-400/10 text-lime-400 border border-lime-400/20 mt-0.5">
+                    <i data-lucide="zap" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-white">Modo 60 Min (2 Series al Fallo)</span>
+                        <span id="timeSavedBadge" class="hidden text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-lime-400/20 text-lime-300">-15 min</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-snug mt-0.5">
+                        Ajusta accesorios a <strong class="text-slate-200">Top Set + Back-off Set</strong> para entrenar en &lt;1h sin perder estímulo.
+                    </p>
+                </div>
+            </div>
+            <!-- Toggle Switch -->
+            <button id="fastModeToggle" onclick="toggleFastMode()" role="switch" aria-checked="false" class="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out bg-slate-700 focus:outline-none">
+                <span id="fastModeKnob" class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+            </button>
+        </div>
+
+        <!-- QUICK BANNER FOR TODAY (LUNES: PRESS DE BANCA YA HECHO) -->
+        <div id="mondayQuickBanner" class="bg-sky-500/10 border border-sky-400/30 rounded-2xl p-3 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-sky-400/20 text-sky-300 flex items-center justify-center shrink-0">
+                    <i data-lucide="check-check" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-sky-200">¿Ya hiciste el Press de Banca hoy?</p>
+                    <p class="text-[11px] text-sky-300/80">Márcalo en un toque y pasa directo al Press Inclinado.</p>
+                </div>
+            </div>
+            <button onclick="quickCompleteBenchPress()" class="shrink-0 px-3 py-2 rounded-xl bg-sky-400 hover:bg-sky-300 active:scale-95 text-slate-950 font-extrabold text-xs transition shadow-sm">
+                Marcar hecho ✓
+            </button>
+        </div>
+
+        <!-- DAY SUMMARY & TECHNICAL ASSIST BAR -->
+        <div class="flex items-center justify-between px-1">
+            <div>
+                <h2 id="dayTitle" class="text-base font-extrabold text-white tracking-tight">Lunes: Pecho, Tríceps + Hombro F1</h2>
+                <p id="daySubtitle" class="text-xs text-slate-400">6 ejercicios · Enfoque tensión constante + Hombro lateral</p>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button onclick="openAnglesModal()" class="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-sky-400 border border-slate-700 text-xs font-bold flex items-center gap-1 transition" title="Ver guía visual de ángulos">
+                    <i data-lucide="compass" class="w-3.5 h-3.5"></i>
+                    <span>Ángulos</span>
+                </button>
+                <button onclick="openResetModal('day')" class="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1 transition" title="Desmarcar series del día">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    <span>Reiniciar día</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- EXERCISES LIST CONTAINER -->
+        <div id="exercisesContainer" class="space-y-3.5 pb-6">
+            <!-- Dynamically populated by JS -->
+        </div>
+
+    </main>
+
+    <!-- FLOATING BOTTOM REST TIMER DOCK (OPTIMIZED FOR PIXEL ONE-HAND USE) -->
+    <div id="restTimerDock" class="fixed bottom-0 inset-x-0 z-40 bg-[#0b111e]/95 backdrop-blur-2xl border-t border-slate-800 px-3.5 py-2.5 shadow-2xl transition-all duration-300">
+        <div class="max-w-lg mx-auto">
+            <!-- Visual Rest Progress Bar -->
+            <div class="w-full h-1.5 bg-slate-800/90 rounded-full overflow-hidden mb-2">
+                <div id="restProgressBar" class="h-full bg-gradient-to-r from-lime-400 to-sky-400 transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <div class="flex items-center justify-between gap-2">
+                <!-- Left: Countdown Display & Active Label -->
+                <div class="flex items-center gap-2.5">
+                    <button id="restPlayPauseBtn" onclick="toggleRestTimer()" class="w-11 h-11 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lime-400 active:scale-95 transition">
+                        <i id="restStateIcon" data-lucide="timer" class="w-5 h-5"></i>
+                    </button>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span id="restTimerDisplay" class="font-mono text-2xl font-extrabold text-white tracking-tight leading-none">01:30</span>
+                            <button onclick="toggleSound()" id="soundToggleBtn" class="p-1 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white" title="Activar/Silenciar aviso sonoro">
+                                <i id="soundIcon" data-lucide="volume-2" class="w-3.5 h-3.5 text-lime-400"></i>
+                            </button>
+                        </div>
+                        <p id="restTimerLabel" class="text-[10px] font-semibold text-slate-400 truncate max-w-[145px] mt-0.5">
+                            Toca una serie para iniciar
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right: Quick Presets & +/- 15s Adjustments -->
+                <div class="flex flex-col items-end gap-1.5">
+                    <!-- Quick Preset Pills -->
+                    <div class="flex items-center gap-1">
+                        <button onclick="startRestTimer(60, 'Descanso rápido (60s)')" class="rest-preset-btn px-2 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 active:scale-95 transition">60s</button>
+                        <button onclick="startRestTimer(90, 'Descanso hipertrofia (90s)')" class="rest-preset-btn px-2 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 active:scale-95 transition">90s</button>
+                        <button onclick="startRestTimer(120, 'Descanso compuesto (2m)')" class="rest-preset-btn px-2 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 active:scale-95 transition">120s</button>
+                        <button onclick="startRestTimer(180, 'Descanso fuerza (3m)')" class="rest-preset-btn px-2 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 active:scale-95 transition">180s</button>
+                    </div>
+                    <!-- Fine Tune & Skip Row -->
+                    <div class="flex items-center gap-1">
+                        <button onclick="adjustRestTimer(-15)" class="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[10px] font-bold text-slate-400 hover:text-white active:scale-95">-15s</button>
+                        <button onclick="adjustRestTimer(15)" class="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[10px] font-bold text-slate-400 hover:text-white active:scale-95">+15s</button>
+                        <button onclick="stopRestTimer()" class="px-2 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-[10px] font-bold text-rose-300 hover:bg-rose-500/25 active:scale-95">Saltar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GUÍA VISUAL DE ÁNGULOS (INCLINADO Y POLEA ALTA) -->
+    <div id="anglesModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl max-h-[88vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="compass" class="w-5 h-5 text-lime-400"></i>
+                    <h3 class="text-base font-extrabold text-white">Guía Visual de Técnica</h3>
+                </div>
+                <button onclick="closeAnglesModal()" class="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Diagram 1: Press Inclinado -->
+            <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-3.5 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold text-lime-400 uppercase tracking-wider">1. Press Inclinado (15° - 30°)</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded bg-lime-400/10 text-lime-300 font-semibold">1-2 puntos de banco</span>
+                </div>
+                <svg viewBox="0 0 320 140" class="w-full h-32 bg-slate-900/60 rounded-xl border border-slate-800/80 p-2">
+                    <!-- Floor -->
+                    <line x1="20" y1="120" x2="300" y2="120" stroke="#475569" stroke-width="2" stroke-dasharray="4 4"/>
+                    <!-- Bench at 25 degrees -->
+                    <line x1="60" y1="120" x2="180" y2="75" stroke="#94a3b8" stroke-width="6" stroke-linecap="round"/>
+                    <text x="65" y="112" fill="#94a3b8" font-size="10" font-weight="bold">15°-30°</text>
+                    <!-- Wrong Diagonal Path -->
+                    <line x1="135" y1="88" x2="175" y2="20" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="4 4"/>
+                    <text x="180" y="32" fill="#f43f5e" font-size="10" font-weight="bold">✗ Hacia delante (Hombro)</text>
+                    <!-- Correct Vertical Path -->
+                    <line x1="135" y1="88" x2="135" y2="14" stroke="#a3e635" stroke-width="3.5"/>
+                    <polygon points="135,8 130,18 140,18" fill="#a3e635"/>
+                    <text x="25" y="25" fill="#a3e635" font-size="10" font-weight="bold">✓ Vertical al techo</text>
+                    <text x="25" y="38" fill="#cbd5e1" font-size="9">(Antebrazos 90° del suelo)</text>
+                </svg>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Empuja <strong>directamente hacia el punto del techo sobre tus ojos/clavícula</strong>. No empujes hacia donde mira tu pecho (en diagonal), ya que la gravedad siempre tira en vertical hacia abajo.
+                </p>
+            </div>
+
+            <!-- Diagram 2: Aperturas en Polea Alta -->
+            <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-3.5 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold text-sky-400 uppercase tracking-wider">2. Apertura Unilateral Polea Alta</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded bg-sky-400/10 text-sky-300 font-semibold">Pecho Inferior</span>
+                </div>
+                <ul class="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
+                    <li><strong>Polea arriba del todo:</strong> Tira en diagonal de arriba hacia abajo (hacia la zona del ombligo/cadera).</li>
+                    <li><strong>Codo semiflexionado (15°-20°):</strong> Mantén ese ángulo bloqueado como si abrazaras un barril grande.</li>
+                    <li><strong>Torso de cemento:</strong> Da un paso al frente con la pierna contraria y evita girar los hombros.</li>
+                </ul>
+            </div>
+
+            <!-- Diagram 3: Protocolo F3 Hombro Lateral -->
+            <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-3.5 space-y-1.5">
+                <span class="text-xs font-extrabold text-amber-400 uppercase tracking-wider">3. Conversión Rápida Burnout Hombro</span>
+                <p class="text-xs text-slate-300">
+                    • <strong>5 a 10 libras = 2.3 a 4.5 kg</strong> (primera o segunda placa de la polea).<br>
+                    • Serie 1: <strong>6-8 reps</strong> al límite · Serie 2: <strong>10-14 reps</strong> · Serie 3: <strong>30-50 reps</strong> bombeo extremo.
+                </p>
+            </div>
+
+            <button onclick="closeAnglesModal()" class="w-full py-2.5 rounded-2xl bg-lime-400 text-slate-950 font-extrabold text-xs">
+                ¡Entendido, a darle caña!
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMACIÓN DE REINICIO (SIN ALERT/CONFIRM NATIVO) -->
+    <div id="resetModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <div class="flex items-center gap-2.5 text-amber-400">
+                <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                <h3 id="resetModalTitle" class="text-sm font-extrabold text-white">¿Reiniciar progreso?</h3>
+            </div>
+            <p id="resetModalDesc" class="text-xs text-slate-300 leading-relaxed">
+                Se desmarcarán las series completadas de este día, pero tus pesos (kg) y repeticiones anotadas se conservarán para la próxima sesión.
+            </p>
+            <div class="flex items-center gap-2 pt-1">
+                <button onclick="closeResetModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Cancelar</button>
+                <button id="confirmResetBtn" class="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-extrabold">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION BANNER -->
+    <div id="toastBanner" class="fixed top-20 inset-x-4 z-50 max-w-sm mx-auto hidden transform transition-all duration-300">
+        <div class="bg-slate-900/95 border-2 border-lime-400 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <i data-lucide="bell-ring" class="w-5 h-5 text-lime-400 animate-bounce"></i>
+                <div>
+                    <p id="toastTitle" class="text-xs font-extrabold text-lime-400">¡Tiempo de descanso terminado!</p>
+                    <p id="toastSubtitle" class="text-[11px] text-slate-200">A por la siguiente serie con todo.</p>
+                </div>
+            </div>
+            <button onclick="hideToast()" class="text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /******************************************************************
+         * BASE DE DATOS DE LA RUTINA (LUNES, MIÉRCOLES, VIERNES)
+         ******************************************************************/
+        const WORKOUT_PLAN = {
+            lunes: {
+                title: "Lunes: Pecho, Tríceps + Hombro F1",
+                subtitle: "Pecho en 3 ángulos + Tríceps + Superserie Hombro/Abdomen",
+                exercises: [
+                    {
+                        id: "lun_banca",
+                        name: "Press de Banca con Barra",
+                        muscle: "Pecho Medio · Fuerza",
+                        badgeColor: "lime",
+                        restSeconds: 180,
+                        isCompound: true, // Keeps 3 sets even in fast mode unless user wants
+                        note: "Ejercicio principal y más pesado de la sesión. Escápulas retraídas y pies firmes en el suelo.",
+                        sets: [
+                            { id: "s1", label: "Serie 1 (Pesada)", targetReps: "6-8", defaultKg: "", defaultReps: "8" },
+                            { id: "s2", label: "Serie 2 (Pesada)", targetReps: "6-8", defaultKg: "", defaultReps: "8" },
+                            { id: "s3", label: "Serie 3 (Al límite)", targetReps: "6-8", defaultKg: "", defaultReps: "7" }
+                        ]
+                    },
+                    {
+                        id: "lun_inclinado",
+                        name: "Press Inclinado con Mancuernas",
+                        muscle: "Pecho Superior (Clavicular)",
+                        badgeColor: "lime",
+                        restSeconds: 120,
+                        isCompound: false,
+                        note: "Banco a 15°-30° (solo 1 o 2 puntos arriba). Empuja totalmente VERTICAL hacia el techo con los antebrazos perpendiculares al suelo, no hacia delante.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "8-10", defaultKg: "", defaultReps: "10" },
+                            { id: "s2", label: "Back-off Set", targetReps: "10-12", defaultKg: "", defaultReps: "10" },
+                            { id: "s3", label: "Serie 3", targetReps: "10-12", defaultKg: "", defaultReps: "12" }
+                        ]
+                    },
+                    {
+                        id: "lun_aperturas",
+                        name: "Aperturas en Polea Alta (Unilateral)",
+                        muscle: "Pecho Inferior · Aislamiento",
+                        badgeColor: "sky",
+                        restSeconds: 90,
+                        isCompound: false,
+                        note: "Polea arriba del todo. Codo semiflexionado fijo (15°-20°). Tira en diagonal hacia tu ombligo como abrazando un barril, torso firme sin rotar.",
+                        sets: [
+                            { id: "s1", label: "Serie 1 (Izq + Der)", targetReps: "12-15", defaultKg: "", defaultReps: "12" },
+                            { id: "s2", label: "Serie 2 (Izq + Der)", targetReps: "12-15", defaultKg: "", defaultReps: "15" },
+                            { id: "s3", label: "Serie 3 (Izq + Der)", targetReps: "12-15", defaultKg: "", defaultReps: "15" }
+                        ]
+                    },
+                    {
+                        id: "lun_triceps_polea",
+                        name: "Extensiones de Tríceps en Polea Alta",
+                        muscle: "Tríceps · Cabeza Lateral",
+                        badgeColor: "sky",
+                        restSeconds: 60,
+                        isCompound: false,
+                        note: "Usa cuerda o barra. Clava los codos a las costillas; solo se mueven los antebrazos. Aprieta 1 segundo abajo en cada repetición.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "10-12", defaultKg: "", defaultReps: "12" },
+                            { id: "s2", label: "Back-off Set", targetReps: "12-15", defaultKg: "", defaultReps: "15" },
+                            { id: "s3", label: "Serie 3", targetReps: "12-15", defaultKg: "", defaultReps: "15" }
+                        ]
+                    },
+                    {
+                        id: "lun_frances",
+                        name: "Press Francés (Mancuernas o Barra Z)",
+                        muscle: "Tríceps · Cabeza Larga",
+                        badgeColor: "sky",
+                        restSeconds: 90,
+                        isCompound: false,
+                        note: "Tumbado en banco, lleva el peso ligeramente por detrás de la frente para estirar la cabeza larga (la que da más tamaño al brazo). Codos fijos al techo.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "10-12", defaultKg: "", defaultReps: "10" },
+                            { id: "s2", label: "Back-off Set", targetReps: "10-12", defaultKg: "", defaultReps: "12" },
+                            { id: "s3", label: "Serie 3", targetReps: "10-12", defaultKg: "", defaultReps: "12" }
+                        ]
+                    },
+                    {
+                        id: "lun_hombro_abs",
+                        name: "Superserie: Laterales en Polea (F1) + Crunch Polea",
+                        muscle: "Hombro Lateral + Abdomen",
+                        badgeColor: "amber",
+                        restSeconds: 60,
+                        isSpecialProtocol: true, // Always keeps the 3-stage shoulder protocol
+                        note: "Haz las elevaciones laterales e inmediatamente 12-15 reps de Crunch abdominal en polea alta. En la 3ª serie usa 2.3 - 4.5 kg (5-10 lbs) para hacer 30-50 reps seguidas.",
+                        sets: [
+                            { id: "s1", label: "1. Pesada (6-8) + Abs (15)", targetReps: "6-8", defaultKg: "", defaultReps: "8" },
+                            { id: "s2", label: "2. Media (10-14) + Abs (15)", targetReps: "10-14", defaultKg: "", defaultReps: "12" },
+                            { id: "s3", label: "3. Burnout (30-50 @ 2.3-4.5kg)", targetReps: "30-50", defaultKg: "3.5", defaultReps: "40" }
+                        ]
+                    }
+                ]
+            },
+            miercoles: {
+                title: "Miércoles: Espalda, Bíceps + Hombro F2",
+                subtitle: "Amplitud y densidad de espalda + Bíceps + Hombro 3D completo",
+                exercises: [
+                    {
+                        id: "mie_jalon",
+                        name: "Dominadas o Jalón al Pecho",
+                        muscle: "Espalda · Amplitud Dorsal",
+                        badgeColor: "lime",
+                        restSeconds: 120,
+                        isCompound: true,
+                        note: "Saca pecho, baja los hombros (deprime escápulas) antes de tirar y lleva la barra hacia la clavícula.",
+                        sets: [
+                            { id: "s1", label: "Serie 1", targetReps: "8-10", defaultKg: "", defaultReps: "10" },
+                            { id: "s2", label: "Serie 2", targetReps: "8-10", defaultKg: "", defaultReps: "10" },
+                            { id: "s3", label: "Serie 3", targetReps: "8-10", defaultKg: "", defaultReps: "8" }
+                        ]
+                    },
+                    {
+                        id: "mie_remo",
+                        name: "Remo con Barra o Polea Baja (Gironda)",
+                        muscle: "Espalda · Densidad Media",
+                        badgeColor: "lime",
+                        restSeconds: 120,
+                        isCompound: false,
+                        note: "Tira pensando en llevar los codos hacia atrás rozando las costillas. Aprieta las escápulas 1 segundo al final.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "8-10", defaultKg: "", defaultReps: "10" },
+                            { id: "s2", label: "Back-off Set", targetReps: "10-12", defaultKg: "", defaultReps: "12" },
+                            { id: "s3", label: "Serie 3", targetReps: "10-12", defaultKg: "", defaultReps: "12" }
+                        ]
+                    },
+                    {
+                        id: "mie_pullover",
+                        name: "Remo Unilateral o Pull-over en Polea Alta",
+                        muscle: "Dorsal Aislado",
+                        badgeColor: "sky",
+                        restSeconds: 90,
+                        isCompound: false,
+                        note: "Enfócate en sentir el estiramiento completo del dorsal al subir y mantén tensión constante.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "12-15", defaultKg: "", defaultReps: "12" },
+                            { id: "s2", label: "Back-off Set", targetReps: "12-15", defaultKg: "", defaultReps: "15" },
+                            { id: "s3", label: "Serie 3", targetReps: "12-15", defaultKg: "", defaultReps: "15" }
+                        ]
+                    },
+                    {
+                        id: "mie_curl_barra",
+                        name: "Curl de Bíceps con Barra Z o Mancuernas",
+                        muscle: "Bíceps · Cabeza Corta y Larga",
+                        badgeColor: "sky",
+                        restSeconds: 90,
+                        isCompound: false,
+                        note: "Codos fijos a los costados sin balancear la espalda baja. Baja controlando el peso en 2 segundos.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "8-10", defaultKg: "", defaultReps: "10" },
+                            { id: "s2", label: "Back-off Set", targetReps: "10-12", defaultKg: "", defaultReps: "12" },
+                            { id: "s3", label: "Serie 3", targetReps: "10-12", defaultKg: "", defaultReps: "12" }
+                        ]
+                    },
+                    {
+                        id: "mie_martillo",
+                        name: "Curl Martillo (Mancuernas o Cuerda)",
+                        muscle: "Braquial y Antebrazo",
+                        badgeColor: "sky",
+                        restSeconds: 60,
+                        isCompound: false,
+                        note: "Agarre neutro (palmas mirándose). Da grosor al brazo visto de frente y protege el codo.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "10-12", defaultKg: "", defaultReps: "12" },
+                            { id: "s2", label: "Back-off Set", targetReps: "10-12", defaultKg: "", defaultReps: "12" },
+                            { id: "s3", label: "Serie 3", targetReps: "10-12", defaultKg: "", defaultReps: "12" }
+                        ]
+                    },
+                    {
+                        id: "mie_hombro_3d",
+                        name: "Superserie Hombro 3D: Laterales (F2) + Face Pulls",
+                        muscle: "Deltoides Lateral + Posterior",
+                        badgeColor: "amber",
+                        restSeconds: 60,
+                        isSpecialProtocol: true,
+                        note: "Combina tu protocolo de laterales en polea con 12-15 reps de Face Pulls llevando la cuerda hacia la frente/ojos para redondear el hombro por detrás.",
+                        sets: [
+                            { id: "s1", label: "1. Pesada (6-8) + Face Pull (15)", targetReps: "6-8", defaultKg: "", defaultReps: "8" },
+                            { id: "s2", label: "2. Media (10-14) + Face Pull (15)", targetReps: "10-14", defaultKg: "", defaultReps: "12" },
+                            { id: "s3", label: "3. Burnout (30-50 @ 2.3-4.5kg)", targetReps: "30-50", defaultKg: "3.5", defaultReps: "40" }
+                        ]
+                    }
+                ]
+            },
+            viernes: {
+                title: "Viernes: Pierna + Hombro F3 + Abdomen",
+                subtitle: "Tren inferior completo + Último toque semanal de Hombro Lateral",
+                exercises: [
+                    {
+                        id: "vie_sentadilla",
+                        name: "Sentadilla Libre o Prensa de Piernas",
+                        muscle: "Cuádriceps y Glúteo · Fuerza",
+                        badgeColor: "lime",
+                        restSeconds: 180,
+                        isCompound: true,
+                        note: "Ejercicio principal de pierna. Baja profundo manteniendo toda la planta del pie pegada y rodillas alineadas con las puntas.",
+                        sets: [
+                            { id: "s1", label: "Serie 1 (Pesada)", targetReps: "6-10", defaultKg: "", defaultReps: "8" },
+                            { id: "s2", label: "Serie 2 (Pesada)", targetReps: "6-10", defaultKg: "", defaultReps: "8" },
+                            { id: "s3", label: "Serie 3 (Al límite)", targetReps: "6-10", defaultKg: "", defaultReps: "8" }
+                        ]
+                    },
+                    {
+                        id: "vie_pmr",
+                        name: "Peso Muerto Rumano (Barra o Mancuernas)",
+                        muscle: "Isquiosurales y Glúteo",
+                        badgeColor: "lime",
+                        restSeconds: 120,
+                        isCompound: false,
+                        note: "Lleva la cadera hacia atrás como si quisieras cerrar una puerta con el glúteo. Rodillas ligeramente flexionadas fijas y espalda neutra.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "8-10", defaultKg: "", defaultReps: "10" },
+                            { id: "s2", label: "Back-off Set", targetReps: "10-12", defaultKg: "", defaultReps: "12" },
+                            { id: "s3", label: "Serie 3", targetReps: "10-12", defaultKg: "", defaultReps: "12" }
+                        ]
+                    },
+                    {
+                        id: "vie_ext_cuad",
+                        name: "Extensiones de Cuádriceps en Máquina",
+                        muscle: "Cuádriceps · Aislamiento",
+                        badgeColor: "sky",
+                        restSeconds: 90,
+                        isCompound: false,
+                        note: "Extiende por completo y aguanta 1 segundo arriba apretando fuerte el cuádriceps.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "12-15", defaultKg: "", defaultReps: "12" },
+                            { id: "s2", label: "Back-off Set", targetReps: "12-15", defaultKg: "", defaultReps: "15" },
+                            { id: "s3", label: "Serie 3", targetReps: "12-15", defaultKg: "", defaultReps: "15" }
+                        ]
+                    },
+                    {
+                        id: "vie_femoral",
+                        name: "Curl Femoral en Máquina (Tumbado o Sentado)",
+                        muscle: "Isquiosurales · Aislamiento",
+                        badgeColor: "sky",
+                        restSeconds: 90,
+                        isCompound: false,
+                        note: "Mantén la pelvis pegada al asiento o banco durante toda la flexión para no ayudar con la espalda baja.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "10-12", defaultKg: "", defaultReps: "12" },
+                            { id: "s2", label: "Back-off Set", targetReps: "12-15", defaultKg: "", defaultReps: "15" },
+                            { id: "s3", label: "Serie 3", targetReps: "12-15", defaultKg: "", defaultReps: "15" }
+                        ]
+                    },
+                    {
+                        id: "vie_gemelo",
+                        name: "Elevación de Gemelos (Máquina o Prensa)",
+                        muscle: "Gemelos y Sóleo",
+                        badgeColor: "sky",
+                        restSeconds: 60,
+                        isCompound: false,
+                        note: "Evita rebotar. Pausa 1 segundo abajo estirando el talón y 1 segundo arriba de puntillas.",
+                        sets: [
+                            { id: "s1", label: "Top Set", targetReps: "15-20", defaultKg: "", defaultReps: "15" },
+                            { id: "s2", label: "Back-off Set", targetReps: "15-20", defaultKg: "", defaultReps: "20" },
+                            { id: "s3", label: "Serie 3", targetReps: "15-20", defaultKg: "", defaultReps: "20" }
+                        ]
+                    },
+                    {
+                        id: "vie_hombro_abs",
+                        name: "Superserie Final: Laterales en Polea (F3) + Abdomen",
+                        muscle: "Hombro Lateral + Rueda / Plancha",
+                        badgeColor: "amber",
+                        restSeconds: 60,
+                        isSpecialProtocol: true,
+                        note: "Tercer estímulo semanal de hombro lateral con el tren superior descansado + Rueda abdominal o plancha isométrica.",
+                        sets: [
+                            { id: "s1", label: "1. Pesada (6-8) + Rueda/Plancha", targetReps: "6-8", defaultKg: "", defaultReps: "8" },
+                            { id: "s2", label: "2. Media (10-14) + Rueda/Plancha", targetReps: "10-14", defaultKg: "", defaultReps: "12" },
+                            { id: "s3", label: "3. Burnout (30-50 @ 2.3-4.5kg)", targetReps: "30-50", defaultKg: "3.5", defaultReps: "45" }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        /******************************************************************
+         * ESTADO GLOBAL Y PERSISTENCIA (LOCALSTORAGE)
+         ******************************************************************/
+        const STORAGE_KEY = "pixel_gym_tracker_v1";
+        let appState = {
+            currentDay: "lunes",
+            fastMode: false, // Modo 60 min (2 series al fallo en accesorios)
+            soundEnabled: true,
+            sessionElapsedSeconds: 0,
+            logs: {} // Format: { "lun_banca_s1": { kg: "80", reps: "8", done: true } }
+        };
+
+        // Timers runtime variables
+        let sessionInterval = null;
+        let isSessionRunning = false;
+
+        let restInterval = null;
+        let isRestRunning = false;
+        let restTotalSeconds = 90;
+        let restRemainingSeconds = 90;
+        let audioCtx = null;
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    appState = { ...appState, ...parsed };
+                }
+            } catch (e) {
+                console.warn("No se pudo cargar localStorage:", e);
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+            } catch (e) {
+                console.warn("No se pudo guardar en localStorage:", e);
+            }
+        }
+
+        /******************************************************************
+         * SONIDO SINTETIZADO (WEB AUDIO API) - SIN ARCHIVOS EXTERNOS
+         ******************************************************************/
+        function playTimerFinishSound() {
+            if (!appState.soundEnabled) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const now = audioCtx.currentTime;
+                const notes = [587.33, 783.99, 1046.50]; // D5, G5, C6 energetic chime
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = "triangle";
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.14);
+                    gain.gain.setValueAtTime(0.25, now + idx * 0.14);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.14 + 0.35);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.14);
+                    osc.stop(now + idx * 0.14 + 0.36);
+                });
+            } catch (e) {
+                console.warn("Audio no disponible:", e);
+            }
+        }
+
+        function playTickCheckSound() {
+            if (!appState.soundEnabled) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(880, now);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.09);
+            } catch (e) {}
+        }
+
+        function toggleSound() {
+            appState.soundEnabled = !appState.soundEnabled;
+            saveState();
+            updateSoundUI();
+        }
+
+        function updateSoundUI() {
+            const btn = document.getElementById("soundToggleBtn");
+            if (!btn) return;
+            btn.innerHTML = appState.soundEnabled
+                ? `<i data-lucide="volume-2" class="w-3.5 h-3.5 text-lime-400"></i>`
+                : `<i data-lucide="volume-x" class="w-3.5 h-3.5 text-slate-500"></i>`;
+            lucide.createIcons();
+        }
+
+        /******************************************************************
+         * CRONÓMETRO GENERAL DE SESIÓN (META: 60 MINUTOS)
+         ******************************************************************/
+        function formatMMSS(sec) {
+            const mins = Math.floor(sec / 60);
+            const rem = sec % 60;
+            return `${String(mins).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+        }
+
+        function updateSessionUI() {
+            const display = document.getElementById("sessionTimerDisplay");
+            const percentEl = document.getElementById("sessionTimePercent");
+            const barEl = document.getElementById("sessionTimeBar");
+            const statusText = document.getElementById("sessionStatusText");
+
+            display.textContent = formatMMSS(appState.sessionElapsedSeconds);
+            const pct = Math.min(100, Math.round((appState.sessionElapsedSeconds / 3600) * 100));
+            percentEl.textContent = `${pct}%`;
+            barEl.style.width = `${pct}%`;
+
+            if (appState.sessionElapsedSeconds >= 3600) {
+                statusText.textContent = "¡60 min alcanzados! Remata las últimas series.";
+                statusText.className = "text-[11px] text-amber-400 font-semibold";
+            } else if (isSessionRunning) {
+                const minsLeft = Math.max(0, Math.ceil((3600 - appState.sessionElapsedSeconds) / 60));
+                statusText.textContent = `Sesión activa · Quedan ~${minsLeft} min para la hora`;
+                statusText.className = "text-[11px] text-lime-400 font-medium";
+            } else {
+                statusText.textContent = "Meta: Completar en 60:00 min";
+                statusText.className = "text-[11px] text-slate-400 font-medium";
+            }
+        }
+
+        function toggleSessionTimer() {
+            const btn = document.getElementById("sessionPlayPauseBtn");
+            if (isSessionRunning) {
+                clearInterval(sessionInterval);
+                isSessionRunning = false;
+                btn.innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i>`;
+                btn.className = "w-8 h-8 rounded-xl bg-lime-400 hover:bg-lime-300 active:scale-95 text-slate-950 flex items-center justify-center transition shadow-sm";
+            } else {
+                isSessionRunning = true;
+                btn.innerHTML = `<i data-lucide="pause" class="w-4 h-4 fill-current"></i>`;
+                btn.className = "w-8 h-8 rounded-xl bg-sky-400 hover:bg-sky-300 active:scale-95 text-slate-950 flex items-center justify-center transition shadow-sm";
+                sessionInterval = setInterval(() => {
+                    appState.sessionElapsedSeconds++;
+                    if (appState.sessionElapsedSeconds % 5 === 0) saveState();
+                    updateSessionUI();
+                }, 1000);
+            }
+            updateSessionUI();
+            lucide.createIcons();
+        }
+
+        /******************************************************************
+         * TEMPORIZADOR DE DESCANSO INTEGRADO
+         ******************************************************************/
+        function startRestTimer(seconds, labelText = "Descanso en curso") {
+            clearInterval(restInterval);
+            restTotalSeconds = seconds;
+            restRemainingSeconds = seconds;
+            isRestRunning = true;
+
+            const dock = document.getElementById("restTimerDock");
+            dock.classList.remove("timer-finished-glow");
+
+            document.getElementById("restTimerLabel").textContent = labelText;
+            updateRestUI();
+
+            // Also auto-start session stopwatch if not started yet
+            if (!isSessionRunning && appState.sessionElapsedSeconds === 0) {
+                toggleSessionTimer();
+            }
+
+            restInterval = setInterval(() => {
+                restRemainingSeconds--;
+                if (restRemainingSeconds <= 0) {
+                    restRemainingSeconds = 0;
+                    clearInterval(restInterval);
+                    isRestRunning = false;
+                    updateRestUI();
+                    onRestTimerFinished();
+                } else {
+                    updateRestUI();
+                }
+            }, 1000);
+        }
+
+        function toggleRestTimer() {
+            if (isRestRunning) {
+                clearInterval(restInterval);
+                isRestRunning = false;
+                document.getElementById("restTimerLabel").textContent = "Descanso en pausa";
+                updateRestUI();
+            } else {
+                if (restRemainingSeconds <= 0) {
+                    restRemainingSeconds = restTotalSeconds || 90;
+                }
+                startRestTimer(restRemainingSeconds, "Descanso reanudado");
+            }
+        }
+
+        function adjustRestTimer(deltaSeconds) {
+            restRemainingSeconds = Math.max(5, restRemainingSeconds + deltaSeconds);
+            restTotalSeconds = Math.max(restTotalSeconds, restRemainingSeconds);
+            updateRestUI();
+        }
+
+        function stopRestTimer() {
+            clearInterval(restInterval);
+            isRestRunning = false;
+            restRemainingSeconds = 0;
+            document.getElementById("restTimerDock").classList.remove("timer-finished-glow");
+            document.getElementById("restTimerLabel").textContent = "Listo para la siguiente serie";
+            updateRestUI();
+        }
+
+        function updateRestUI() {
+            const display = document.getElementById("restTimerDisplay");
+            const bar = document.getElementById("restProgressBar");
+            const btn = document.getElementById("restPlayPauseBtn");
+
+            display.textContent = formatMMSS(restRemainingSeconds);
+            const pct = restTotalSeconds > 0
+                ? Math.max(0, Math.min(100, ((restTotalSeconds - restRemainingSeconds) / restTotalSeconds) * 100))
+                : 0;
+            bar.style.width = `${pct}%`;
+
+            if (isRestRunning) {
+                display.className = "font-mono text-2xl font-extrabold text-lime-400 tracking-tight leading-none";
+                btn.innerHTML = `<i data-lucide="pause" class="w-5 h-5 fill-current text-lime-400"></i>`;
+            } else {
+                display.className = "font-mono text-2xl font-extrabold text-white tracking-tight leading-none";
+                btn.innerHTML = `<i data-lucide="play" class="w-5 h-5 fill-current text-sky-400"></i>`;
+            }
+            lucide.createIcons();
+        }
+
+        function onRestTimerFinished() {
+            playTimerFinishSound();
+            const dock = document.getElementById("restTimerDock");
+            dock.classList.add("timer-finished-glow");
+            document.getElementById("restTimerLabel").textContent = "¡TIEMPO CUMPLIDO! Dale a la serie";
+            showToast("¡Tiempo de descanso terminado!", "Tu músculo está listo. ¡A por la siguiente serie!");
+        }
+
+        function showToast(title, subtitle) {
+            const toast = document.getElementById("toastBanner");
+            document.getElementById("toastTitle").textContent = title;
+            document.getElementById("toastSubtitle").textContent = subtitle;
+            toast.classList.remove("hidden");
+            setTimeout(() => {
+                hideToast();
+            }, 4500);
+        }
+
+        function hideToast() {
+            document.getElementById("toastBanner").classList.add("hidden");
+        }
+
+        /******************************************************************
+         * RENDERIZADO DE EJERCICIOS Y SERIES
+         ******************************************************************/
+        function getActiveSetsForExercise(exercise) {
+            // If Fast Mode (2 series al fallo) is ON, accessory exercises (non-compound and non-special shoulder 3-stage protocol) use 2 sets
+            if (appState.fastMode && !exercise.isCompound && !exercise.isSpecialProtocol) {
+                return exercise.sets.slice(0, 2);
+            }
+            return exercise.sets;
+        }
+
+        function switchDay(dayKey) {
+            appState.currentDay = dayKey;
+            saveState();
+            renderAll();
+        }
+
+        function toggleFastMode() {
+            appState.fastMode = !appState.fastMode;
+            saveState();
+            renderAll();
+        }
+
+        function updateFastModeUI() {
+            const toggle = document.getElementById("fastModeToggle");
+            const knob = document.getElementById("fastModeKnob");
+            const badge = document.getElementById("timeSavedBadge");
+
+            if (appState.fastMode) {
+                toggle.classList.remove("bg-slate-700");
+                toggle.classList.add("bg-lime-400");
+                knob.classList.remove("translate-x-0", "bg-white");
+                knob.classList.add("translate-x-5", "bg-slate-950");
+                badge.classList.remove("hidden");
+            } else {
+                toggle.classList.add("bg-slate-700");
+                toggle.classList.remove("bg-lime-400");
+                knob.classList.add("translate-x-0", "bg-white");
+                knob.classList.remove("translate-x-5", "bg-slate-950");
+                badge.classList.add("hidden");
+            }
+        }
+
+        function renderTabs() {
+            ['lunes', 'miercoles', 'viernes'].forEach(day => {
+                const tab = document.getElementById(`tab-${day}`);
+                if (day === appState.currentDay) {
+                    tab.className = "day-tab py-2.5 px-2 rounded-xl text-center transition-all duration-200 flex flex-col items-center justify-center bg-gradient-to-br from-lime-400 to-sky-400 text-slate-950 shadow-md shadow-lime-400/10";
+                } else {
+                    tab.className = "day-tab py-2.5 px-2 rounded-xl text-center transition-all duration-200 flex flex-col items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/60";
+                }
+            });
+        }
+
+        function renderExercises() {
+            const dayData = WORKOUT_PLAN[appState.currentDay];
+            document.getElementById("dayTitle").textContent = dayData.title;
+            document.getElementById("daySubtitle").textContent = dayData.subtitle;
+
+            // Show quick bench press banner on Monday if Bench Press isn't fully completed yet
+            const mondayBanner = document.getElementById("mondayQuickBanner");
+            if (appState.currentDay === "lunes") {
+                const benchEx = dayData.exercises[0];
+                const allBenchDone = benchEx.sets.every(s => appState.logs[`${benchEx.id}_${s.id}`]?.done);
+                mondayBanner.classList.toggle("hidden", allBenchDone);
+            } else {
+                mondayBanner.classList.add("hidden");
+            }
+
+            const container = document.getElementById("exercisesContainer");
+            container.innerHTML = "";
+
+            let totalSetsToday = 0;
+            let completedSetsToday = 0;
+
+            dayData.exercises.forEach((ex, index) => {
+                const activeSets = getActiveSetsForExercise(ex);
+                totalSetsToday += activeSets.length;
+
+                const exCompletedCount = activeSets.filter(s => appState.logs[`${ex.id}_${s.id}`]?.done).length;
+                completedSetsToday += exCompletedCount;
+                const isExAllDone = exCompletedCount === activeSets.length;
+
+                // Badge styling
+                const badgeMap = {
+                    lime: "bg-lime-400/15 text-lime-300 border-lime-400/30",
+                    sky: "bg-sky-400/15 text-sky-300 border-sky-400/30",
+                    amber: "bg-amber-400/15 text-amber-300 border-amber-400/30"
+                };
+                const badgeClass = badgeMap[ex.badgeColor] || badgeMap.sky;
+
+                // Build sets rows HTML
+                const setsHtml = activeSets.map((setObj, sIdx) => {
+                    const logKey = `${ex.id}_${setObj.id}`;
+                    const saved = appState.logs[logKey] || {
+                        kg: setObj.defaultKg,
+                        reps: setObj.defaultReps,
+                        done: false
+                    };
+
+                    const rowBg = saved.done
+                        ? "bg-lime-400/10 border-lime-400/40"
+                        : "bg-slate-950/70 border-slate-800/90";
+
+                    return `
+                        <div class="grid grid-cols-12 items-center gap-2 p-2 rounded-2xl border ${rowBg} transition-all duration-200">
+                            <!-- Set Label & Target -->
+                            <div class="col-span-5 pl-1">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-5 h-5 rounded-lg bg-slate-800 text-[11px] font-extrabold text-slate-300 flex items-center justify-center shrink-0">${sIdx + 1}</span>
+                                    <span class="text-xs font-bold ${saved.done ? 'text-lime-300 line-through' : 'text-slate-200'} truncate">${setObj.label}</span>
+                                </div>
+                                <span class="text-[10px] text-slate-400 font-medium pl-6.5 block">Obj: ${setObj.targetReps} reps</span>
+                            </div>
+
+                            <!-- KG Input -->
+                            <div class="col-span-3">
+                                <div class="relative">
+                                    <input
+                                        type="number"
+                                        step="0.5"
+                                        inputmode="decimal"
+                                        placeholder="0"
+                                        value="${saved.kg}"
+                                        oninput="updateSetData('${ex.id}', '${setObj.id}', 'kg', this.value)"
+                                        class="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-400 rounded-xl py-1.5 pl-2 pr-6 text-center font-mono text-xs font-bold text-white focus:outline-none"
+                                    />
+                                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">kg</span>
+                                </div>
+                            </div>
+
+                            <!-- REPS Input -->
+                            <div class="col-span-2">
+                                <input
+                                    type="number"
+                                    inputmode="numeric"
+                                    placeholder="${setObj.defaultReps}"
+                                    value="${saved.reps}"
+                                    oninput="updateSetData('${ex.id}', '${setObj.id}', 'reps', this.value)"
+                                    class="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-400 rounded-xl py-1.5 px-1 text-center font-mono text-xs font-bold text-white focus:outline-none"
+                                />
+                            </div>
+
+                            <!-- Complete Set Button (Triggers Rest Timer) -->
+                            <div class="col-span-2 flex justify-end">
+                                <button
+                                    onclick="toggleSetComplete('${ex.id}', '${setObj.id}', ${ex.restSeconds}, '${ex.name.replace(/'/g, "\\'")}')"
+                                    class="w-10 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 ${
+                                        saved.done
+                                            ? 'bg-lime-400 text-slate-950 shadow-md shadow-lime-400/20'
+                                            : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                                    }"
+                                    title="Marcar serie y activar descanso de ${ex.restSeconds}s"
+                                >
+                                    <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join("");
+
+                const cardBorder = isExAllDone
+                    ? "border-lime-400/50 bg-slate-900/95"
+                    : "border-slate-800/90 bg-slate-900/75";
+
+                const cardHtml = `
+                    <article class="rounded-3xl border ${cardBorder} p-4 shadow-lg transition-all">
+                        <!-- Card Header -->
+                        <div class="flex items-start justify-between gap-2 mb-2.5">
+                            <div class="space-y-1">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">#${index + 1}</span>
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${badgeClass}">${ex.muscle}</span>
+                                    ${
+                                        appState.fastMode && !ex.isCompound && !ex.isSpecialProtocol
+                                            ? `<span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-lime-400/15 text-lime-300">2 Series Intensas</span>`
+                                            : ""
+                                    }
+                                </div>
+                                <h3 class="text-sm font-extrabold text-white leading-snug">${ex.name}</h3>
+                            </div>
+
+                            <!-- Quick Rest Trigger Button on Card -->
+                            <button
+                                onclick="startRestTimer(${ex.restSeconds}, '${ex.name.replace(/'/g, "\\'")}')"
+                                class="shrink-0 px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-sky-400 flex items-center gap-1 text-xs font-mono font-bold active:scale-95 transition"
+                                title="Iniciar descanso recomendado"
+                            >
+                                <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                                <span>${ex.restSeconds}s</span>
+                            </button>
+                        </div>
+
+                        <!-- Technical Coach Note -->
+                        <div class="mb-3 bg-slate-950/90 border-l-2 border-sky-400 rounded-r-xl px-3 py-2 flex items-start gap-2">
+                            <i data-lucide="info" class="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5"></i>
+                            <p class="text-[11px] text-slate-300 leading-relaxed">${ex.note}</p>
+                        </div>
+
+                        <!-- Column Headers -->
+                        <div class="grid grid-cols-12 gap-2 px-2 mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            <div class="col-span-5">Serie / Rango</div>
+                            <div class="col-span-3 text-center">Peso (kg)</div>
+                            <div class="col-span-2 text-center">Reps</div>
+                            <div class="col-span-2 text-right pr-1">Listo</div>
+                        </div>
+
+                        <!-- Sets List -->
+                        <div class="space-y-2">
+                            ${setsHtml}
+                        </div>
+                    </article>
+                `;
+
+                container.insertAdjacentHTML("beforeend", cardHtml);
+            });
+
+            // Update Daily Progress Bar
+            const pct = totalSetsToday > 0 ? Math.round((completedSetsToday / totalSetsToday) * 100) : 0;
+            document.getElementById("dayProgressText").textContent = `${completedSetsToday}/${totalSetsToday} series (${pct}%)`;
+            document.getElementById("dayProgressBar").style.width = `${pct}%`;
+
+            lucide.createIcons();
+        }
+
+        /******************************************************************
+         * INTERACCIÓN CON SERIES (GUARDADO Y AUTO-TEMPORIZADOR)
+         ******************************************************************/
+        function updateSetData(exId, setId, field, value) {
+            const key = `${exId}_${setId}`;
+            const current = appState.logs[key] || { kg: "", reps: "", done: false };
+            current[field] = value;
+            appState.logs[key] = current;
+            saveState();
+        }
+
+        function toggleSetComplete(exId, setId, restSeconds, exName) {
+            const key = `${exId}_${setId}`;
+            const current = appState.logs[key] || { kg: "", reps: "", done: false };
+            current.done = !current.done;
+            appState.logs[key] = current;
+            saveState();
+
+            if (current.done) {
+                playTickCheckSound();
+                startRestTimer(restSeconds, `${exName} (${restSeconds}s)`);
+            }
+            renderExercises();
+        }
+
+        // Marcar rápidamente el Press de Banca de hoy como hecho
+        function quickCompleteBenchPress() {
+            const benchEx = WORKOUT_PLAN.lunes.exercises[0];
+            benchEx.sets.forEach(s => {
+                const key = `${benchEx.id}_${s.id}`;
+                const existing = appState.logs[key] || { kg: s.defaultKg, reps: s.defaultReps, done: false };
+                existing.done = true;
+                appState.logs[key] = existing;
+            });
+            saveState();
+            playTickCheckSound();
+            renderExercises();
+            showToast("¡Press de Banca completado!", "Siguiente paso: Press Inclinado con Mancuernas (15°-30°).");
+        }
+
+        /******************************************************************
+         * MODALES Y REINICIO SEGURO
+         ******************************************************************/
+        let pendingResetType = null;
+
+        function openAnglesModal() {
+            document.getElementById("anglesModal").classList.remove("hidden");
+        }
+
+        function closeAnglesModal() {
+            document.getElementById("anglesModal").classList.add("hidden");
+        }
+
+        function openResetModal(type) {
+            pendingResetType = type;
+            const modal = document.getElementById("resetModal");
+            const title = document.getElementById("resetModalTitle");
+            const desc = document.getElementById("resetModalDesc");
+            const btn = document.getElementById("confirmResetBtn");
+
+            if (type === "session") {
+                title.textContent = "¿Reiniciar cronómetro de 60 min?";
+                desc.textContent = "El contador general de la sesión volverá a 00:00.";
+            } else {
+                title.textContent = `¿Reiniciar series del ${appState.currentDay.toUpperCase()}?`;
+                desc.textContent = "Se desmarcarán las casillas completadas de hoy para empezar de cero, pero tus kilos (kg) y repeticiones se mantendrán guardados.";
+            }
+
+            btn.onclick = () => executeReset();
+            modal.classList.remove("hidden");
+        }
+
+        function closeResetModal() {
+            document.getElementById("resetModal").classList.add("hidden");
+            pendingResetType = null;
+        }
+
+        function executeReset() {
+            if (pendingResetType === "session") {
+                clearInterval(sessionInterval);
+                isSessionRunning = false;
+                appState.sessionElapsedSeconds = 0;
+                saveState();
+                updateSessionUI();
+                const btn = document.getElementById("sessionPlayPauseBtn");
+                btn.innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i>`;
+                btn.className = "w-8 h-8 rounded-xl bg-lime-400 hover:bg-lime-300 active:scale-95 text-slate-950 flex items-center justify-center transition shadow-sm";
+                lucide.createIcons();
+            } else if (pendingResetType === "day") {
+                const dayExercises = WORKOUT_PLAN[appState.currentDay].exercises;
+                dayExercises.forEach(ex => {
+                    ex.sets.forEach(s => {
+                        const key = `${ex.id}_${s.id}`;
+                        if (appState.logs[key]) {
+                            appState.logs[key].done = false;
+                        }
+                    });
+                });
+                saveState();
+                renderExercises();
+            }
+            closeResetModal();
+        }
+
+        function renderAll() {
+            renderTabs();
+            updateFastModeUI();
+            updateSoundUI();
+            updateSessionUI();
+            updateRestUI();
+            renderExercises();
+        }
+
+        window.onload = function () {
+            loadState();
+            renderAll();
+        };
+    </script>
+<script src="extras.js"></script>
+<script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+        }
+    </script>
+</body>
+</html>
